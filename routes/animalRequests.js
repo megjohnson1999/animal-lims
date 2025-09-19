@@ -982,6 +982,54 @@ router.post('/auto-fulfill', auth, roleCheck(['facility_manager', 'admin']), asy
 });
 
 /**
+ * GET /api/animal-requests/debug
+ * Debug endpoint to check database connectivity and table existence
+ */
+router.get('/debug', auth, async (req, res) => {
+  try {
+    // Check if animal_requests table exists
+    const tableCheck = await db.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables
+        WHERE table_schema = 'public'
+        AND table_name = 'animal_requests'
+      ) as table_exists
+    `);
+
+    // Check user role
+    const userRole = req.user.role;
+
+    // Try simple count query
+    let recordCount = 0;
+    try {
+      const countResult = await db.query('SELECT COUNT(*) as count FROM animal_requests');
+      recordCount = countResult.rows[0].count;
+    } catch (countError) {
+      console.error('Count query failed:', countError);
+    }
+
+    res.json({
+      success: true,
+      database_connected: true,
+      table_exists: tableCheck.rows[0].table_exists,
+      user_role: userRole,
+      user_id: req.user.id,
+      record_count: recordCount,
+      message: 'Debug info collected successfully'
+    });
+
+  } catch (error) {
+    console.error('Debug endpoint error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      user_role: req.user?.role || 'unknown',
+      message: 'Debug check failed'
+    });
+  }
+});
+
+/**
  * GET /api/animal-requests/stats
  * Get request statistics (facility managers only)
  */
